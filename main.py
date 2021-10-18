@@ -181,7 +181,7 @@ def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
         f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
 
 
-def getBeatmapsFromBeatmapset(beatmapset_id=None, beatmap_id=None):
+def getBeatmapsFromBeatmapset(beatmapset_id: int = None, beatmap_id: int = None):
     beatmapset_discussion = None
 
     if beatmapset_id:
