@@ -2,6 +2,7 @@ from ossapi import *
 from os import getenv
 from dotenv import load_dotenv
 from pymongo import *
+from random import sample
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ TODO: Error handling
 
 """
 
-Osu! API Connection
+* Osu! API Connection
 
 """
 
@@ -26,7 +27,7 @@ api = OssapiV2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
 
 
 """
-MongoDB Connection
+* MongoDB Connection
 """
 
 MONGODB_URI = getenv("MONGODB_URI")
@@ -36,7 +37,7 @@ db = client.python_database
 
 """
 
-Global Variables and Classes
+* Global Variables and Classes
 
 """
 
@@ -59,12 +60,12 @@ valid_status = ["GRAVEYARD", "PENDING", "WIP"]
 
 """
 
-FUNCTIONS: Import/Export from MongoDB 
+* FUNCTIONS: Import/Export from MongoDB 
 
 """
 
 
-def getGenres(genre_list: list):
+def getGenres(genre_list: list) -> list[Genre]:
     genres = []
 
     for genre in genre_list:
@@ -76,7 +77,7 @@ def getGenres(genre_list: list):
     return genres
 
 
-def getGenre(genre: str):
+def getGenre(genre: str) -> Genre | None:
     genres = getGenres(genre_list)
     for genre_class in genres:
         if (
@@ -88,16 +89,16 @@ def getGenre(genre: str):
     return None
 
 
-def linkParser(link: str):
-    website_url = "https://osu.ppy.sh"
+def linkParser(link: str) -> tuple((int | None, int | None)): 
+    """
+    Supported links:\n
+    1 - https://osu.ppy.sh/beatmapsets/123456\n
+    2 - https://osu.ppy.sh/beatmapsets/123456#osu/123456\n
+    3 - https://osu.ppy.sh/b/123456\n
+    4 - https://osu.ppy.sh/beatmaps/123456\n
+    """
 
-    """
-    Supported links:
-    1 - https://osu.ppy.sh/beatmapsets/123456
-    2 - https://osu.ppy.sh/beatmapsets/123456#osu/123456
-    3 - https://osu.ppy.sh/b/123456
-    4 - https://osu.ppy.sh/beatmaps/123456
-    """
+    website_url = "https://osu.ppy.sh"
 
     if not link.startswith(website_url):
         return None, None
@@ -138,7 +139,7 @@ def linkParser(link: str):
             return None, None
 
 
-def generateBeatmapJSON(beatmap: Beatmap, genre: Genre):
+def generateBeatmapJSON(beatmap: Beatmap, genre: Genre) -> dict:
     return {
         "id": beatmap.id,
         "artist": beatmap.beatmapset.artist,
@@ -158,7 +159,7 @@ def generateBeatmapJSON(beatmap: Beatmap, genre: Genre):
     }
 
 
-def readMapsMongo():
+def readMapsMongo() -> list[dict]:
     try:
         cursor = db.maps.find({})
 
@@ -180,7 +181,7 @@ def writeMapsMongo(beatmap: dict):
         return False
 
 
-def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
+def saveBeatmapJSON(beatmap: Beatmap, genre: Genre) -> bool:
     genre = getGenre(genre)
 
     if beatmap.mode.name != "STD":
@@ -205,7 +206,7 @@ def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
         f"{beatmap_json['artist']} - {beatmap_json['title']} [{beatmap_json['version']}] has been added !")
 
 
-def getBeatmapsFromBeatmapset(beatmapset_id: int = None, beatmap_id: int = None):
+def getBeatmapsFromBeatmapset(beatmapset_id: int = None, beatmap_id: int = None) -> list[Beatmap]:
     beatmapset_discussion = None
 
     if beatmapset_id:
@@ -225,7 +226,7 @@ def getBeatmapsFromBeatmapset(beatmapset_id: int = None, beatmap_id: int = None)
     return beatmaps
 
 
-def addBeatmap(url: str, genre: str, import_beatmapset: bool):
+def addBeatmap(url: str, genre: str, import_beatmapset: bool) -> bool:
     beatmapset_id, beatmap_id = linkParser(url)
 
     if beatmapset_id == None and beatmap_id == None:
@@ -259,29 +260,40 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
 
 """
 
-FUNCTIONS: Fetching betmaps from list of beatmaps
+* FUNCTIONS: Fetching betmaps from list of beatmaps
 
 """
 
 
-def getMaps(maps: list[dict], artist: str = "", title: str = "", difficulty: float = 0, genre: str = ""):
-    filters = ["artist", "title", "difficulty", "genre"]
-    filtered_maps = []
+def filterMaps(maps: list[dict], artist: str = "", title: str = "", rating: int = 0, genre: str = "") -> list[dict]:
+    if artist != "":
+        maps = list(filter(lambda beatmap: artist.lower() in beatmap['artist'].lower(), maps))
 
-    for beatmap in maps:
-        for the_filter in filters:
-            if artist != "" and artist.lower() in beatmap['artist'].lower():
-                print('A') 
+    if title != "":
+        maps = list(filter(lambda beatmap: title.lower() in beatmap['title'].lower(), maps))
+
+    if rating > 0:
+        maps = list(filter(lambda beatmap: round(rating) == round(beatmap['rating']), maps))
+
+    if genre != "":
+        maps = list(filter(lambda beatmap: genre.lower() == beatmap['genre'].lower()))
+
+    return maps
+
+def getRandomMap(maps: list[dict], number:int =1) -> list[dict] | None:
+    if number <= len(maps):
+        random_beatmaps = sample(maps, k=number)
+        # ! Problem: random_beatmaps can contain multiple difficulty of the same beatmapset !
+        return random_beatmaps
+
+    return None
 
 
 """
-TESTS
+
+* TESTS
+
 """
-
-
-def truncateMaps():
-    db.maps.remove({})
-
 
 class TextColors:
     BLACK = '\033[30m'
@@ -293,6 +305,10 @@ class TextColors:
     CYAN = '\033[36m'
     WHITE = '\033[37m'
     RESET = '\033[39m'
+
+
+def truncateMaps():
+    db.maps.remove({})
 
 
 def runImportsTests():
@@ -348,10 +364,25 @@ def runImportsTests():
 
 
 """
-MAIN
+
+* MAIN
+
 """
 
 if __name__ == "__main__":
     # runImportsTests()
     maps = readMapsMongo()
-    getMaps(maps, artist="Alia")
+    maps = filterMaps(maps)
+
+    print("-----RECOMMEND-----")
+    # Recommend   
+    random_map = getRandomMap(maps)
+    
+    print(f"{random_map[0]['artist']} - {random_map[0]['title']} [{random_map[0]['version']}] {random_map[0]['rating']}*")
+
+    print("-----BOMB-----")
+    # Bomb
+    random_maps = getRandomMap(maps, 5)
+    
+    for random_map in random_maps:
+        print(f"{random_map['artist']} - {random_map['title']} [{random_map['version']}] {random_map['rating']}*")
