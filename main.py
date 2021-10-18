@@ -1,10 +1,9 @@
+import json
+from ossapi import *
+from os import getenv
 from dotenv import load_dotenv
 
 load_dotenv()
-
-from os import getenv
-from ossapi import *
-import json
 
 
 """
@@ -58,7 +57,8 @@ def getGenres(genre_list: list):
 
     for genre in genre_list:
         genres.append(
-            Genre(genre["genre"], genre["aliases"] if "aliases" in genre else [])
+            Genre(genre["genre"], genre["aliases"]
+                  if "aliases" in genre else [])
         )
 
     return genres
@@ -154,7 +154,8 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
     genre = getGenre(genre)
 
     if import_beatmapset == True and beatmap_id == None:
-        beatmapset = api.search_beatmapsets(beatmapset_id).beatmapsets[0].beatmaps
+        beatmapset = api.search_beatmapsets(
+            beatmapset_id).beatmapsets[0].beatmaps
 
         for beatmap in beatmapset:
             """
@@ -190,8 +191,10 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
 
         writeMapsJSON(beatmap_json)
 
-        print(f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
+        print(
+            f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
 
 
 if __name__ == "__main__":
-    addBeatmap("https://osu.ppy.sh/beatmapsets/1583851#osu/3235078", "Classic", False)
+    addBeatmap("https://osu.ppy.sh/beatmapsets/1583851#osu/3235078",
+               "Classic", False)
