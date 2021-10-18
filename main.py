@@ -67,6 +67,13 @@ def getGenres(genre_list: list):
 def linkParser(link: str):
     website_url = "https://osu.ppy.sh"
 
+    """
+    Supported links:
+    1 - https://osu.ppy.sh/beatmapsets/123456
+    2 - https://osu.ppy.sh/beatmapsets/123456#osu/123456
+    3 - https://osu.ppy.sh/b/123456
+    """
+
     if not link.startswith(website_url):
         return None, None
 
@@ -74,14 +81,17 @@ def linkParser(link: str):
         link = link.replace(f"{website_url}/beatmapsets/", "")
 
         if link.isnumeric():
+            # In this case it's the first type of link
             return int(link), None
 
         if not link.__contains__("#osu"):
+            # If it doesn't contain #osu, it's not a STD beatmap
             return None, None
 
         link = link.split("#osu/")
 
         if len(link) != 2:
+            # Idk how this can happen but just in case
             return None, None
 
         if link[0].isnumeric() and link[1].isnumeric():
@@ -92,7 +102,7 @@ def linkParser(link: str):
     elif link.startswith(f"{website_url}/b/"):
         link = link.replace(f"{website_url}/b/", "")
         if link.isnumeric():
-            return int(link), None
+            return None, int(link)
         else:
             return None, None
 
@@ -144,42 +154,16 @@ def writeMapsJSON(beatmap: dict):
     with open("./maps.json", "w") as maps_data:
         json.dump(maps, maps_data, ensure_ascii=False, indent=4)
 
-
-def addBeatmap(url: str, genre: str, import_beatmapset: bool):
-    beatmapset_id, beatmap_id = linkParser(url)
-
-    if import_beatmapset == False and beatmap_id == None:
-        return False
-
-    genre = getGenre(genre)
-
-    if import_beatmapset == True and beatmap_id == None:
-        beatmapset = api.search_beatmapsets(
-            beatmapset_id).beatmapsets[0].beatmaps
-
-        for beatmap in beatmapset:
-            """
-            TODO: Use the function saveBeatmapJSON
-            """
-            pass
-    else:
-        if import_beatmapset == True:
-            beatmapset = api.beatmap(beatmap_id).beatmapset.beatmaps
-            for beatmap in beatmapset:
-                """
-                TODO: Use the function saveBeatmapJSON
-                """
-                pass
-
-        """
-        TODO: Put code below in a function called saveBeatmapJSON
-        """
-
-        beatmap = api.beatmap(beatmap_id)
-
+def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
+        genre = getGenre(genre)
         valid_status = ["GRAVEYARD", "PENDING", "WIP"]
 
+        if beatmap.mode.name != "STD":
+            # Check if game mode is STD
+            return False
+
         if not valid_status.__contains__(beatmap.status.name):
+            # Check if map is not ranked, loved or qualified
             return False
 
         beatmap_json = generateBeatmapJSON(beatmap, genre)
@@ -187,6 +171,7 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
         maps = readMapsJSON()
 
         if maps.__contains__(beatmap_json):
+            # Check if beatmap already exist in maps
             return False
 
         writeMapsJSON(beatmap_json)
@@ -194,7 +179,58 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
         print(
             f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
 
+def getBeatmapsFromBeatmapset(beatmapset_id=None, beatmap_id=None):
+    beatmapset_discussion = None
+    
+    if beatmapset_id:
+        beatmapset_discussion = api.beatmapset_discussions(beatmapset_id=beatmapset_id).beatmaps
+    else:
+        beatmapset_discussion = api.beatmapset_discussions(beatmap_id=beatmap_id).beatmaps
+        
+    beatmaps = []
+    for beatmap_discussion in beatmapset_discussion:
+        try:
+            beatmaps.append(api.beatmap(beatmap_discussion.id))
+        except:
+            pass
+        
+    return beatmaps
+
+def addBeatmap(url: str, genre: str, import_beatmapset: bool):
+    beatmapset_id, beatmap_id = linkParser(url)
+
+    maps = readMapsJSON()
+
+    if any(d['id'] == beatmap_id for d in maps):
+        # Check if beatmap_id already exist in maps
+        return False
+
+    if import_beatmapset == False and beatmap_id == None:
+        # We need beatmap_id when importing only 1 difficulty
+        return False
+
+    if import_beatmapset == True and beatmapset_id:
+        beatmapset = getBeatmapsFromBeatmapset(beatmapset_id)
+        for beatmap in beatmapset:
+            saveBeatmapJSON(beatmap, genre)
+        return True
+    else:
+        if import_beatmapset == True:
+            beatmapset = getBeatmapsFromBeatmapset(beatmap_id=beatmap_id)
+            for beatmap in beatmapset:
+                saveBeatmapJSON(beatmap, genre)
+            return True
+
+        beatmap = api.beatmap(beatmap_id)
+        saveBeatmapJSON(beatmap, genre)
 
 if __name__ == "__main__":
     addBeatmap("https://osu.ppy.sh/beatmapsets/1583851#osu/3235078",
                "Classic", False)
+    addBeatmap("https://osu.ppy.sh/beatmapsets/955965",
+               "Classic", True)
+    addBeatmap("https://osu.ppy.sh/b/1996988",
+               "Classic", False)
+    addBeatmap("https://osu.ppy.sh/b/1996988",
+               "Classic", True)
+    addBeatmap("https://osu.ppy.sh/beatmapsets/880539#osu/1929422", "Tech", True)
