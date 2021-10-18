@@ -1,4 +1,3 @@
-import json
 from ossapi import *
 from os import getenv
 from dotenv import load_dotenv
