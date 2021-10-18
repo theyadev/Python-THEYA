@@ -59,7 +59,7 @@ valid_status = ["GRAVEYARD", "PENDING", "WIP"]
 
 """
 
-Functions
+FUNCTIONS: Import/Export from MongoDB 
 
 """
 
@@ -257,6 +257,28 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
         saveBeatmapJSON(beatmap, genre)
 
 
+"""
+
+FUNCTIONS: Fetching betmaps from list of beatmaps
+
+"""
+
+
+def getMaps(maps: list[dict], artist: str = "", title: str = "", difficulty: float = 0, genre: str = ""):
+    filters = ["artist", "title", "difficulty", "genre"]
+    filtered_maps = []
+
+    for beatmap in maps:
+        for the_filter in filters:
+            if artist != "" and artist.lower() in beatmap['artist'].lower():
+                print('A') 
+
+
+"""
+TESTS
+"""
+
+
 def truncateMaps():
     db.maps.remove({})
 
@@ -273,7 +295,7 @@ class TextColors:
     RESET = '\033[39m'
 
 
-def runTests():
+def runImportsTests():
     truncateMaps()
 
     # Test 1: Import beatmapset from supported link 1
@@ -325,5 +347,11 @@ def runTests():
     addBeatmap("https://osu.ppy.sh/beatmaps/1929269", "Tech", 58)
 
 
+"""
+MAIN
+"""
+
 if __name__ == "__main__":
-    runTests()
+    # runImportsTests()
+    maps = readMapsMongo()
+    getMaps(maps, artist="Alia")
