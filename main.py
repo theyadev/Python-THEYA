@@ -172,7 +172,7 @@ def readMapsMongo() -> list[dict]:
         return []
 
 
-def writeMapsMongo(beatmap: dict):
+def writeMapsMongo(beatmap: dict) -> bool:
     try:
         db.maps.insert_one(beatmap)
         return True
