@@ -228,6 +228,9 @@ def getBeatmapsFromBeatmapset(beatmapset_id: int = None, beatmap_id: int = None)
 def addBeatmap(url: str, genre: str, import_beatmapset: bool):
     beatmapset_id, beatmap_id = linkParser(url)
 
+    if beatmapset_id == None and beatmap_id == None:
+        return False
+
     maps = readMapsMongo()
 
     if any(d['id'] == beatmap_id for d in maps):
@@ -308,6 +311,18 @@ def runTests():
     # Test 7: Import beatmapset from supported link 4
     print(F"{TextColors.YELLOW}Should import every difficulty from *Feels Seasickness...*{TextColors.RESET}")
     addBeatmap("https://osu.ppy.sh/beatmaps/1929269", "Tech", True)
+
+    # Test 8: Passing wrong link
+    print(F"{TextColors.YELLOW}Should do nothing{TextColors.RESET}")
+    addBeatmap("https://youtube.com", "Tech", True)
+
+    # Test 9: Passing wrong genre
+    print(F"{TextColors.YELLOW}Should do nothing{TextColors.RESET}")
+    addBeatmap("https://osu.ppy.sh/beatmaps/1929269", "TechAndAlternate", True)
+
+    # Test 10: Passing wrong import_beatmapset
+    print(F"{TextColors.YELLOW}Should do nothing{TextColors.RESET}")
+    addBeatmap("https://osu.ppy.sh/beatmaps/1929269", "Tech", 58)
 
 
 if __name__ == "__main__":
