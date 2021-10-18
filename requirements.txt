@@ -1,2 +1,4 @@
 ossapi
 python-dotenv
+pymongo
+pymongo[srv]

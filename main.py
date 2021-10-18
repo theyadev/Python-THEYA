@@ -2,13 +2,14 @@ import json
 from ossapi import *
 from os import getenv
 from dotenv import load_dotenv
+from pymongo import *
 
 load_dotenv()
 
 
 """
 
-TODO: Use MongoDB or SQL Database instead of JSONs
+TODO: Error handling
 
 """
 
@@ -18,11 +19,21 @@ Osu! API Connection
 
 """
 
-client_id = getenv("CLIENT_ID")
-client_secret = getenv("CLIENT_SECRET")
-redirect_uri = getenv("REDIRECT_URI")
+CLIENT_ID = getenv("CLIENT_ID")
+CLIENT_SECRET = getenv("CLIENT_SECRET")
+REDIRECT_URI = getenv("REDIRECT_URI")
 
-api = OssapiV2(client_id, client_secret, redirect_uri)
+api = OssapiV2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
+
+
+"""
+MongoDB Connection
+"""
+
+MONGODB_URI = getenv("MONGODB_URI")
+
+client = MongoClient(MONGODB_URI)
+db = client.python_database
 
 """
 
@@ -45,6 +56,8 @@ genre_list = [
     {"genre": "Stream"},
 ]
 
+valid_status = ["GRAVEYARD", "PENDING", "WIP"]
+
 """
 
 Functions
@@ -62,6 +75,18 @@ def getGenres(genre_list: list):
         )
 
     return genres
+
+
+def getGenre(genre: str):
+    genres = getGenres(genre_list)
+    for genre_class in genres:
+        if (
+            genre_class.NAME.lower() == genre.lower()
+            or genre_class.ALIASES.__contains__(genre.lower())
+        ):
+            return genre_class
+
+    return None
 
 
 def linkParser(link: str):
@@ -107,18 +132,6 @@ def linkParser(link: str):
             return None, None
 
 
-def getGenre(genre: str):
-    genres = getGenres(genre_list)
-    for genre_class in genres:
-        if (
-            genre_class.NAME.lower() == genre.lower()
-            or genre_class.ALIASES.__contains__(genre.lower())
-        ):
-            return genre_class
-
-    return None
-
-
 def generateBeatmapJSON(beatmap: Beatmap, genre: Genre):
     return {
         "id": beatmap.id,
@@ -139,25 +152,30 @@ def generateBeatmapJSON(beatmap: Beatmap, genre: Genre):
     }
 
 
-def readMapsJSON():
+def readMapsMongo():
     try:
-        with open("./maps.json", "r", encoding="utf-8") as maps_data:
-            maps = json.load(maps_data)
-            return maps
+        cursor = db.maps.find({})
+
+        maps = []
+
+        for beatmap in cursor:
+            maps.append(beatmap)
+
+        return maps
     except:
         return []
 
 
-def writeMapsJSON(beatmap: dict):
-    maps = readMapsJSON()
-    maps.append(beatmap)
-    with open("./maps.json", "w") as maps_data:
-        json.dump(maps, maps_data, ensure_ascii=False, indent=4)
+def writeMapsMongo(beatmap: dict):
+    try:
+        db.maps.insert_one(beatmap)
+        return True
+    except:
+        return False
 
 
 def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
     genre = getGenre(genre)
-    valid_status = ["GRAVEYARD", "PENDING", "WIP"]
 
     if beatmap.mode.name != "STD":
         # Check if game mode is STD
@@ -169,13 +187,13 @@ def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
 
     beatmap_json = generateBeatmapJSON(beatmap, genre)
 
-    maps = readMapsJSON()
+    maps = readMapsMongo()
 
-    if maps.__contains__(beatmap_json):
+    if any(d['id'] == beatmap.id for d in maps):
         # Check if beatmap already exist in maps
         return False
 
-    writeMapsJSON(beatmap_json)
+    writeMapsMongo(beatmap_json)
 
     print(
         f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
@@ -204,7 +222,7 @@ def getBeatmapsFromBeatmapset(beatmapset_id: int = None, beatmap_id: int = None)
 def addBeatmap(url: str, genre: str, import_beatmapset: bool):
     beatmapset_id, beatmap_id = linkParser(url)
 
-    maps = readMapsJSON()
+    maps = readMapsMongo()
 
     if any(d['id'] == beatmap_id for d in maps):
         # Check if beatmap_id already exist in maps
