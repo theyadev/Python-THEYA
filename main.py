@@ -154,47 +154,52 @@ def writeMapsJSON(beatmap: dict):
     with open("./maps.json", "w") as maps_data:
         json.dump(maps, maps_data, ensure_ascii=False, indent=4)
 
+
 def saveBeatmapJSON(beatmap: Beatmap, genre: Genre):
-        genre = getGenre(genre)
-        valid_status = ["GRAVEYARD", "PENDING", "WIP"]
+    genre = getGenre(genre)
+    valid_status = ["GRAVEYARD", "PENDING", "WIP"]
 
-        if beatmap.mode.name != "STD":
-            # Check if game mode is STD
-            return False
+    if beatmap.mode.name != "STD":
+        # Check if game mode is STD
+        return False
 
-        if not valid_status.__contains__(beatmap.status.name):
-            # Check if map is not ranked, loved or qualified
-            return False
+    if not valid_status.__contains__(beatmap.status.name):
+        # Check if map is not ranked, loved or qualified
+        return False
 
-        beatmap_json = generateBeatmapJSON(beatmap, genre)
+    beatmap_json = generateBeatmapJSON(beatmap, genre)
 
-        maps = readMapsJSON()
+    maps = readMapsJSON()
 
-        if maps.__contains__(beatmap_json):
-            # Check if beatmap already exist in maps
-            return False
+    if maps.__contains__(beatmap_json):
+        # Check if beatmap already exist in maps
+        return False
 
-        writeMapsJSON(beatmap_json)
+    writeMapsJSON(beatmap_json)
 
-        print(
-            f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
+    print(
+        f"{beatmap_json['artist']} - {beatmap_json['title']} has been added !")
+
 
 def getBeatmapsFromBeatmapset(beatmapset_id=None, beatmap_id=None):
     beatmapset_discussion = None
-    
+
     if beatmapset_id:
-        beatmapset_discussion = api.beatmapset_discussions(beatmapset_id=beatmapset_id).beatmaps
+        beatmapset_discussion = api.beatmapset_discussions(
+            beatmapset_id=beatmapset_id).beatmaps
     else:
-        beatmapset_discussion = api.beatmapset_discussions(beatmap_id=beatmap_id).beatmaps
-        
+        beatmapset_discussion = api.beatmapset_discussions(
+            beatmap_id=beatmap_id).beatmaps
+
     beatmaps = []
     for beatmap_discussion in beatmapset_discussion:
         try:
             beatmaps.append(api.beatmap(beatmap_discussion.id))
         except:
             pass
-        
+
     return beatmaps
+
 
 def addBeatmap(url: str, genre: str, import_beatmapset: bool):
     beatmapset_id, beatmap_id = linkParser(url)
@@ -223,6 +228,7 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool):
 
         beatmap = api.beatmap(beatmap_id)
         saveBeatmapJSON(beatmap, genre)
+
 
 if __name__ == "__main__":
     addBeatmap("https://osu.ppy.sh/beatmapsets/1583851#osu/3235078",
