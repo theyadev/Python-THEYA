@@ -271,28 +271,35 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool) -> bool:
 
 def filterMaps(
     maps: list[dict],
+    search: str = "",
     artist: str = "",
     title: str = "",
     rating: int = 0,
     genre: str = "",
 ) -> list[dict]:
-    if artist != "":
-        maps = list(
-            filter(lambda beatmap: artist.lower() in beatmap["artist"].lower(), maps)
-        )
 
-    if title != "":
+    if search != "" and search is not None:
         maps = list(
-            filter(lambda beatmap: title.lower() in beatmap["title"].lower(), maps)
-        )
+                filter(lambda beatmap: search.lower() in beatmap["artist"].lower() or search.lower() in beatmap["title"].lower(), maps)
+            )
+    else:
+        if artist != "" and artist is not None:
+            maps = list(
+                filter(lambda beatmap: artist.lower() in beatmap["artist"].lower(), maps)
+            )
 
-    if rating > 0:
+        if title != "" and title is not None:
+            maps = list(
+                filter(lambda beatmap: title.lower() in beatmap["title"].lower(), maps)
+            )
+
+    if rating is not None and rating > 0:
         maps = list(
             filter(lambda beatmap: round(rating) == round(beatmap["rating"]), maps)
         )
 
-    if genre != "":
-        maps = list(filter(lambda beatmap: genre.lower() == beatmap["genre"].lower()))
+    if genre != "" and genre is not None:
+        maps = list(filter(lambda beatmap: genre.lower() == beatmap["genre"].lower(), maps))
 
     return maps
 
@@ -390,7 +397,7 @@ def runImportsTests():
 """
 
 if __name__ == "__main__":
-    # runImportsTests()
+    runImportsTests()
     maps = readMapsMongo()
     maps = filterMaps(maps)
 
