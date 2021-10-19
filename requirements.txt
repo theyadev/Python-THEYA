@@ -2,3 +2,4 @@ ossapi
 python-dotenv
 pymongo
 pymongo[srv]
+discord.py
