@@ -120,7 +120,7 @@ def linkParser(link: str) -> tuple((int | None, int | None)):
             return None, None
 
         if link[0].isnumeric() and link[1].isnumeric():
-            return link[0], link[1]
+            return int(link[0]), int(link[1])
         else:
             return None, None
 
@@ -136,6 +136,8 @@ def linkParser(link: str) -> tuple((int | None, int | None)):
             return None, int(link)
         else:
             return None, None
+
+    return None, None
 
 
 def generateBeatmapJSON(beatmap: Beatmap, genre: Genre) -> dict:
