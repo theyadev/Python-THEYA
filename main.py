@@ -142,6 +142,9 @@ def linkParser(link: str) -> tuple((int | None, int | None)):
 
     return None, None
 
+def getCreator(user_id):
+    creator = api.user(user_id)
+    return creator.username
 
 def generateBeatmapJSON(beatmap: Beatmap, genre: Genre, beatmapset: Beatmapset = None) -> dict:
     return {
@@ -154,7 +157,7 @@ def generateBeatmapJSON(beatmap: Beatmap, genre: Genre, beatmapset: Beatmapset =
         "total_length": beatmap.total_length,
         "version": beatmap.version,
         "rating": beatmap.difficulty_rating,
-        "creator": beatmap.user_id,
+        "creator": getCreator(beatmap.user_id),
         "ar": beatmap.ar,
         "cs": beatmap.cs,
         "accuracy": beatmap.accuracy,
