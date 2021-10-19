@@ -24,7 +24,6 @@ CLIENT_SECRET = getenv("CLIENT_SECRET")
 REDIRECT_URI = getenv("REDIRECT_URI")
 OSU_API_TOKEN = getenv("OSU_API_TOKEN")
 
-apiV1 = Ossapi(OSU_API_TOKEN)
 api = OssapiV2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
 
 
@@ -168,14 +167,7 @@ def generateBeatmapJSON(beatmap: Beatmap, genre: Genre, beatmapset: Beatmapset =
 
 def readMapsMongo() -> list[dict]:
     try:
-        cursor = db.maps.find({})
-
-        maps = []
-
-        for beatmap in cursor:
-            maps.append(beatmap)
-
-        return maps
+        return list(db.maps.find({}))
     except:
         return []
 
