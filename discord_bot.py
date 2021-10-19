@@ -124,6 +124,7 @@ async def on_message(message: Message):
         return valid_responses.__contains__(msg.content.lower()) and msg.author == message.author
 
     timeout = 30
+    embed_timeout = Embed(title="Erreur !", description=f"Vous avez mis trop temps ! ({timeout}s)", color=Color.red())
 
     def check(msg: Message):
         return msg.author == message.author
@@ -151,17 +152,20 @@ async def on_message(message: Message):
 
     if any(beatmap["id"] == beatmap_id for beatmap in maps):
         # Check if beatmap_id already exist in maps
-        await message.channel.send("La beatmap existe déja dans le bot !")
+        embed = Embed(title="Erreur !", description="La beatmap existe déjà dans le bot !", color=Color.orange())
+        await message.channel.send(embed=embed)
         return
 
     beatmapset, beatmap = getBeatmapInfo(beatmapset_id, beatmap_id)
 
     if beatmap:
         if beatmap.mode.name != "STD":
-            await message.channel.send("Ce n'est pas une map Standard !")
+            embed = Embed(title="Erreur !", description="Ce n'est pas une beatmap Standard !", color=Color.orange())
+            await message.channel.send(embed=embed)
             return
 
-    await message.channel.send("Quel genre ?")
+    embed = Embed(title="Quel genre voulez-vous attribuer à la beatmap ?", description="(Classic/Tech/Alternate/Speed/Stream)", color=Color.blue())
+    await message.channel.send(embed=embed)
 
     genre = None
 
@@ -169,42 +173,53 @@ async def on_message(message: Message):
         msg_genre: Message = await bot.wait_for("message", check=check, timeout=timeout)
         genre = getGenre(msg_genre.content)
     except:
-        await message.channel.send('Vous avez mis trop de temps, tache annulé !')
+        await message.channel.send(embed=embed_timeout)
         return
 
     if genre is None:
-        await message.channel.send("Le genre est invalide ! Veuillez recommencer l'importation !")
+        embed = Embed(title="Erreur !", description="Le genre n'est pas valide ! Veuillez recommencer le processus d'importation !", color=Color.red())
+        await message.channel.send(embed=embed)
         return
 
     genre = genre.NAME
 
     import_all = False if beatmap is not None else True
 
-    if (len(beatmapset.beatmaps) > 1):
-        await message.channel.send(f"Est-ce que tu veux importer toute les difficultées ?")
+    if (len(beatmapset.beatmaps) > 1) and not import_all:
+        embed = Embed(title="Voulez-vous importer toutes les difficultées", description="(oui/non)", color=Color.blue())
+        await message.channel.send(embed = embed)
 
         try:
             msg_import: Message = await bot.wait_for("message", check=checkPositiveOrNegative, timeout=timeout)
         except:
-            await message.channel.send('Vous avez mis trop de temps, tache annulé !')
+            await message.channel.send(embed=embed_timeout)
             return
 
         if positive_responses.__contains__(msg_import.content.lower()):
             import_all = True
 
-    await message.channel.send(f"Est-tu sur de vouloir importer {beatmapset.artist} - {beatmapset.title} {f'[{beatmap.version}]' if not import_all else ''} avec le genre {genre} ?")
+    embed = Embed(title=f"Etes-vous sur de vouloir importer la beatmap suivante{' avec toute ses difficultées' if import_all else ''}:", description=f"**{beatmapset.artist}**\n{beatmapset.title}\n{f'[{beatmap.version}]' if not import_all else ''}\nGenre: {genre}", color=Color.greyple())
+    embed.set_image(
+            url=f"https://assets.ppy.sh/beatmaps/{beatmapset.id}/covers/cover.jpg")
+    await message.channel.send(embed = embed)
 
     try:
         msg_recap: Message = await bot.wait_for("message", check=checkPositiveOrNegative, timeout=timeout)
     except:
-        await message.channel.send('Vous avez mis trop de temps, tache annulé !')
+        await message.channel.send(embed=embed_timeout)
         return
 
     if positive_responses.__contains__(msg_recap.content.lower()):
+        embed = Embed(title="Ajout de la beatmap en cours...", description="Veuillez patienter.", color=Color.orange())
+        await message.channel.send(embed=embed)
+
         addBeatmap(message.content, genre, import_all)
-        await message.channel.send("La map à correctement été ajouté !")
+        
+        embed = Embed(title="La beatmap a été correctement ajouté !!", description="Vous pouvez en ajouter une autre des maintenant en collant un autre lien !", color=Color.green())
+        await message.channel.send(embed=embed)
     else:
-        await message.channel.send("D'accord ! Annulation...")
+        embed= Embed(title="Annulation...", color=Color.red())
+        await message.channel.send(embed=embed)
 
 
 bot.run(getenv("DISCORD_TOKEN"))
