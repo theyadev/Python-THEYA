@@ -22,7 +22,9 @@ TODO: Error handling
 CLIENT_ID = getenv("CLIENT_ID")
 CLIENT_SECRET = getenv("CLIENT_SECRET")
 REDIRECT_URI = getenv("REDIRECT_URI")
+OSU_API_TOKEN = getenv("OSU_API_TOKEN")
 
+apiV1 = Ossapi(OSU_API_TOKEN)
 api = OssapiV2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
 
 
@@ -70,7 +72,8 @@ def getGenres(genre_list: list) -> list[Genre]:
 
     for genre in genre_list:
         genres.append(
-            Genre(genre["genre"], genre["aliases"] if "aliases" in genre else [])
+            Genre(genre["genre"], genre["aliases"]
+                  if "aliases" in genre else [])
         )
 
     return genres
@@ -140,11 +143,11 @@ def linkParser(link: str) -> tuple((int | None, int | None)):
     return None, None
 
 
-def generateBeatmapJSON(beatmap: Beatmap, genre: Genre) -> dict:
+def generateBeatmapJSON(beatmap: Beatmap, genre: Genre, beatmapset: Beatmapset = None) -> dict:
     return {
         "id": beatmap.id,
-        "artist": beatmap.beatmapset.artist,
-        "title": beatmap.beatmapset.title,
+        "artist": beatmapset.artist if beatmapset else beatmap.beatmapset.artist,
+        "title": beatmapset.title if beatmapset else beatmap.beatmapset.title,
         "beatmapset_id": beatmap.beatmapset_id,
         "mode": beatmap.mode.name,
         "status": beatmap.status.name,
@@ -182,7 +185,7 @@ def writeMapsMongo(beatmap: dict) -> bool:
         return False
 
 
-def saveBeatmapJSON(beatmap: Beatmap, genre: Genre) -> bool:
+def saveBeatmapJSON(beatmap: Beatmap, genre: Genre, beatmapset: Beatmapset = None) -> bool:
     genre = getGenre(genre)
 
     if beatmap.mode.name != "STD":
@@ -193,7 +196,7 @@ def saveBeatmapJSON(beatmap: Beatmap, genre: Genre) -> bool:
         # Check if map is not ranked, loved or qualified
         return False
 
-    beatmap_json = generateBeatmapJSON(beatmap, genre)
+    beatmap_json = generateBeatmapJSON(beatmap, genre, beatmapset=beatmapset)
 
     maps = readMapsMongo()
 
@@ -206,30 +209,6 @@ def saveBeatmapJSON(beatmap: Beatmap, genre: Genre) -> bool:
     print(
         f"{beatmap_json['artist']} - {beatmap_json['title']} [{beatmap_json['version']}] has been added !"
     )
-
-
-def getBeatmapsFromBeatmapset(
-    beatmapset_id: int = None, beatmap_id: int = None
-) -> list[Beatmap]:
-    beatmapset_discussion = None
-
-    if beatmapset_id:
-        beatmapset_discussion = api.beatmapset_discussions(
-            beatmapset_id=beatmapset_id
-        ).beatmaps
-    else:
-        beatmapset_discussion = api.beatmapset_discussions(
-            beatmap_id=beatmap_id
-        ).beatmaps
-
-    beatmaps = []
-    for beatmap_discussion in beatmapset_discussion:
-        try:
-            beatmaps.append(api.beatmap(beatmap_discussion.id))
-        except:
-            pass
-
-    return beatmaps
 
 
 def addBeatmap(url: str, genre: str, import_beatmapset: bool) -> bool:
@@ -249,15 +228,17 @@ def addBeatmap(url: str, genre: str, import_beatmapset: bool) -> bool:
         return False
 
     if import_beatmapset == True and beatmapset_id:
-        beatmapset = getBeatmapsFromBeatmapset(beatmapset_id)
-        for beatmap in beatmapset:
-            saveBeatmapJSON(beatmap, genre)
+        # beatmapset = api.search_beatmapsets(query=f"{beatmapset_id}&s=any").beatmapsets[0].beatmaps
+        beatmapset = api._get(Beatmapset, "/beatmapsets/" + str(beatmapset_id))
+        for beatmap in beatmapset.beatmaps:
+            saveBeatmapJSON(beatmap, genre, beatmapset=beatmapset)
         return True
     else:
         if import_beatmapset == True:
-            beatmapset = getBeatmapsFromBeatmapset(beatmap_id=beatmap_id)
-            for beatmap in beatmapset:
-                saveBeatmapJSON(beatmap, genre)
+            beatmapset = api._get(
+                Beatmapset, "/beatmapsets/lookup", {"beatmap_id": beatmap_id})
+            for beatmap in beatmapset.beatmaps:
+                saveBeatmapJSON(beatmap, genre, beatmapset=beatmapset)
             return True
 
         beatmap = api.beatmap(beatmap_id)
@@ -282,26 +263,31 @@ def filterMaps(
 
     if search != "" and search is not None:
         maps = list(
-                filter(lambda beatmap: search.lower() in beatmap["artist"].lower() or search.lower() in beatmap["title"].lower(), maps)
-            )
+            filter(lambda beatmap: search.lower() in beatmap["artist"].lower(
+            ) or search.lower() in beatmap["title"].lower(), maps)
+        )
     else:
         if artist != "" and artist is not None:
             maps = list(
-                filter(lambda beatmap: artist.lower() in beatmap["artist"].lower(), maps)
+                filter(lambda beatmap: artist.lower()
+                       in beatmap["artist"].lower(), maps)
             )
 
         if title != "" and title is not None:
             maps = list(
-                filter(lambda beatmap: title.lower() in beatmap["title"].lower(), maps)
+                filter(lambda beatmap: title.lower()
+                       in beatmap["title"].lower(), maps)
             )
 
     if rating is not None and rating > 0:
         maps = list(
-            filter(lambda beatmap: round(rating) == round(beatmap["rating"]), maps)
+            filter(lambda beatmap: round(rating) ==
+                   round(beatmap["rating"]), maps)
         )
 
     if genre != "" and genre is not None:
-        maps = list(filter(lambda beatmap: genre.lower() == beatmap["genre"].lower(), maps))
+        maps = list(filter(lambda beatmap: genre.lower()
+                    == beatmap["genre"].lower(), maps))
 
     return maps
 
@@ -313,6 +299,26 @@ def getRandomMap(maps: list[dict], number: int = 1) -> list[dict] | None:
         return random_beatmaps
 
     return None
+
+
+"""
+
+* Other Functions
+
+"""
+
+
+def getBeatmapInfo(beatmapset_id: int = None, beatmap_id: int = None, import_all=False):
+    beatmapset = None
+    beatmap = None
+
+    if beatmap_id:
+        beatmapset = api._get(Beatmapset, "/beatmapsets/lookup", {"beatmap_id": beatmap_id})
+        beatmap = api.beatmap(beatmap_id)
+    elif beatmapset_id:
+        beatmapset = api._get(Beatmapset, "/beatmapsets/" + str(beatmapset_id))
+
+    return beatmapset, beatmap
 
 
 """
@@ -351,10 +357,12 @@ def runImportsTests():
     print(
         f"{TextColors.YELLOW}Should import: Shadow is the Light [blob]{TextColors.RESET}"
     )
-    addBeatmap("https://osu.ppy.sh/beatmapsets/1583851#osu/3235078", "Classic", False)
+    addBeatmap("https://osu.ppy.sh/beatmapsets/1583851#osu/3235078",
+               "Classic", False)
 
     # Test 3: Import beatmapset from supported link 2
-    print(f"{TextColors.YELLOW}Should import: Kuyenda [Underwater]{TextColors.RESET}")
+    print(
+        f"{TextColors.YELLOW}Should import: Kuyenda [Underwater]{TextColors.RESET}")
     addBeatmap("https://osu.ppy.sh/beatmapsets/880539#osu/1929422", "Tech", True)
 
     # Test 4: Import 1 Difficulty from supported link 3
@@ -366,6 +374,10 @@ def runImportsTests():
     # Test 5: Import beatmapset from supported link 3
     print(f"{TextColors.YELLOW}Should not import: AliA - Kakurenbo{TextColors.RESET}")
     addBeatmap("https://osu.ppy.sh/b/1996988", "Classic", True)
+
+    # Test 5: Import beatmapset from supported link 3
+    print(f"{TextColors.YELLOW}Should import CHika CHika Chikatto{TextColors.RESET}")
+    addBeatmap("https://osu.ppy.sh/b/1983407", "Classic", True)
 
     # Test 6: Import 1 Difficulty from supported link 4
     print(
