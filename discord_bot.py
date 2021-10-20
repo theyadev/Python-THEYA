@@ -6,13 +6,27 @@ from discord.ext.commands.context import Context
 from discord.message import Message
 from dotenv import load_dotenv
 from main import getCreator, readMapsMongo, getRandomMap, filterMaps, getGenre, linkParser, getBeatmapInfo, addBeatmap,valid_status
+from pymongo import *
+
 load_dotenv()
+
+MONGODB_URI = getenv("MONGODB_URI")
+
+client = MongoClient(MONGODB_URI)
+db = client.python_database
 
 config = {}
 
 with open("./discord_config.json", "r", encoding="utf-8") as config_file:
     config_json = json.load(config_file)
     config.update(config_json)
+
+config["authorized_channels"] = []
+
+servers = list(db.servers.find({}))
+
+for server in servers:
+    config["authorized_channels"].append(server['id'])
 
 bot = commands.Bot(command_prefix=config['prefix'])
 
@@ -61,9 +75,7 @@ async def setChannel(ctx: Context, arg: str):
             if positive_responses.__contains__(message.content.lower()):
                 config['authorized_channels'].remove(int(arg))
 
-                with open("./discord_config.json", "w", encoding="utf-8") as config_file:
-                    json.dump(config, config_file,
-                              ensure_ascii=False, indent=4)
+                db.servers.remove({ "id": int(arg) })
                 
                 embed=Embed(title="Success !", description=f"#{channel} has been removed from moderation channels !", color=Color.green())
                 await ctx.send(embed=embed)
@@ -85,8 +97,7 @@ async def setChannel(ctx: Context, arg: str):
         if positive_responses.__contains__(message.content.lower()):
             config['authorized_channels'].append(int(arg))
 
-            with open("./discord_config.json", "w", encoding="utf-8") as config_file:
-                json.dump(config, config_file, ensure_ascii=False, indent=4)
+            db.servers.insert_one({ "id": int(arg) })
             embed=Embed(title="Success !", description=f"#{channel} is now a moderation channel !", color=Color.green())
             await ctx.send(embed=embed)
         else:
