@@ -62,6 +62,29 @@ async def on_ready():
 
 
 @bot.command()
+async def seeChannels(ctx: Context):
+    if ctx.author.id != 382302674164514818:
+        embed = Embed(
+            title="You are not authorized.",
+            description="You can't do this command !",
+            color=Color.red(),
+        )
+        await ctx.send(embed=embed)
+        return
+    print(f"{ctx.author.name} - seeChannels")
+    channels = [
+        "#" + str(bot.get_channel(id_))
+        for id_ in config["authorized_channels"]
+        if bot.get_channel(id_) is not None
+    ]
+    description = "\n".join(channels)
+    embed = Embed(
+        title="Moderation channels list:", description=description, color=Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+
+@bot.command()
 async def setChannel(ctx: Context, arg: str):
     if ctx.author.id != 382302674164514818:
         embed = Embed(
@@ -73,6 +96,7 @@ async def setChannel(ctx: Context, arg: str):
         return
     print(f"{ctx.author.name} - setChannel: {arg}")
     if arg.isnumeric():
+
         def checkPositiveOrNegative(message: Message):
             return (
                 valid_responses.__contains__(message.content.lower())
@@ -83,10 +107,10 @@ async def setChannel(ctx: Context, arg: str):
 
         if channel is None:
             embed = Embed(
-                    title="Error !",
-                    description=f"Channel ID incorrect ! (15s)",
-                    color=Color.red(),
-                )
+                title="Error !",
+                description=f"Channel ID incorrect ! (15s)",
+                color=Color.red(),
+            )
             await ctx.send(embed=embed)
             return
 
