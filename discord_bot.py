@@ -38,6 +38,10 @@ async def on_ready():
 
 @bot.command()
 async def setChannel(ctx: Context, arg: str):
+    if ctx.author.id != 382302674164514818:
+        embed = Embed(title="You are not authorized.", description="You can't do this command !", color=Color.red())
+        await ctx.send(embed=embed)
+        return
     if arg.isnumeric():
         def checkPositiveOrNegative(message: Message):
             return valid_responses.__contains__(message.content.lower()) and message.author == ctx.author
