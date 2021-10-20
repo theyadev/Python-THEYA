@@ -178,9 +178,8 @@ def filterMapsFromArgs(args):
 
 @bot.command()
 async def maps(ctx, *args):
-    maps = filterMapsFromArgs(args)[0]
-    await  ctx.send(len(maps))
-
+    maps, genre, rating, search = filterMapsFromArgs(args)
+    await  ctx.send(f"There are {len(maps)} maps{' with:' if search or genre or rating else ' !'}{' ' + search if search else ''}{' ' + str(rating) + '★' if rating else ''}{' ' + genre if genre else ''}")
 
 @bot.command(aliases=["r"])
 async def recommend(ctx, *args):
