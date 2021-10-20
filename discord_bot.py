@@ -71,8 +71,8 @@ async def setChannel(ctx: Context, arg: str):
         )
         await ctx.send(embed=embed)
         return
+    print(f"{ctx.author.name} - setChannel: {arg}")
     if arg.isnumeric():
-
         def checkPositiveOrNegative(message: Message):
             return (
                 valid_responses.__contains__(message.content.lower())
@@ -80,6 +80,15 @@ async def setChannel(ctx: Context, arg: str):
             )
 
         channel = bot.get_channel(int(arg))
+
+        if channel is None:
+            embed = Embed(
+                    title="Error !",
+                    description=f"Channel ID incorrect ! (15s)",
+                    color=Color.red(),
+                )
+            await ctx.send(embed=embed)
+            return
 
         if config["authorized_channels"].__contains__(int(arg)):
             await ctx.send(
@@ -181,6 +190,7 @@ def filterMapsFromArgs(args):
 
 @bot.command()
 async def maps(ctx, *args):
+    print(f"{ctx.author.name} - maps: {args}")
     maps, genre, rating, search = filterMapsFromArgs(args)
     await ctx.send(
         f"There are {len(maps)} maps{' with:' if search or genre or rating else ' !'}{' ' + search if search else ''}{' ' + str(rating) + '★' if rating else ''}{' ' + genre if genre else ''}"
@@ -189,6 +199,7 @@ async def maps(ctx, *args):
 
 @bot.command(aliases=["r"])
 async def recommend(ctx, *args):
+    print(f"{ctx.author.name} - recommend: {args}")
     maps, genre, rating, search = filterMapsFromArgs(args)
 
     maps = getRandomMap(maps)
