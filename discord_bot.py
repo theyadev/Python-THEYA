@@ -154,9 +154,7 @@ async def setChannel(ctx: Context, arg: str):
             )
             await ctx.send(embed=embed)
 
-
-@bot.command(aliases=["r"])
-async def recommend(ctx, *args):
+def filterMapsFromArgs(args):
     maps = readMapsMongo()
 
     genre = None
@@ -176,6 +174,18 @@ async def recommend(ctx, *args):
                 search = arg
 
     maps = filterMaps(maps, search=search, rating=rating, genre=genre)
+    return maps, genre, rating, search
+
+@bot.command()
+async def maps(ctx, *args):
+    maps = filterMapsFromArgs(args)[0]
+    await  ctx.send(len(maps))
+
+
+@bot.command(aliases=["r"])
+async def recommend(ctx, *args):
+    maps, genre, rating, search = filterMapsFromArgs(args)
+
     maps = getRandomMap(maps)
 
     if maps is None:
