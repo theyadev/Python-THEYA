@@ -2,6 +2,7 @@ import json
 from discord import Embed, Color
 from discord.ext import commands
 from os import getenv
+from discord.ext.commands import CommandNotFound
 from discord.ext.commands.context import Context
 from discord.message import Message
 from dotenv import load_dotenv
@@ -154,6 +155,7 @@ async def setChannel(ctx: Context, arg: str):
             )
             await ctx.send(embed=embed)
 
+
 def filterMapsFromArgs(args):
     maps = readMapsMongo()
 
@@ -176,10 +178,14 @@ def filterMapsFromArgs(args):
     maps = filterMaps(maps, search=search, rating=rating, genre=genre)
     return maps, genre, rating, search
 
+
 @bot.command()
 async def maps(ctx, *args):
     maps, genre, rating, search = filterMapsFromArgs(args)
-    await  ctx.send(f"There are {len(maps)} maps{' with:' if search or genre or rating else ' !'}{' ' + search if search else ''}{' ' + str(rating) + '★' if rating else ''}{' ' + genre if genre else ''}")
+    await ctx.send(
+        f"There are {len(maps)} maps{' with:' if search or genre or rating else ' !'}{' ' + search if search else ''}{' ' + str(rating) + '★' if rating else ''}{' ' + genre if genre else ''}"
+    )
+
 
 @bot.command(aliases=["r"])
 async def recommend(ctx, *args):
@@ -364,6 +370,13 @@ async def on_message(message: Message):
             title="Aborted.", description="Aborted by user.", color=Color.red()
         )
         await message.channel.send(embed=embed)
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, CommandNotFound):
+        return
+    raise error
 
 
 bot.run(getenv("DISCORD_TOKEN"))
