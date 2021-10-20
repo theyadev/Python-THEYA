@@ -406,7 +406,7 @@ def runImportsTests():
 """
 
 if __name__ == "__main__":
-    runImportsTests()
+    # runImportsTests()
     maps = readMapsMongo()
     maps = filterMaps(maps)
 
