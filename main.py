@@ -321,6 +321,60 @@ def filterMapsFromArgs(args):
     maps = filterMaps(maps, search=search, rating=rating, genre=genre)
     return maps, genre, rating, search
 
+"""
+
+* Requests Functions
+
+"""
+
+def readRequestedMaps() -> list[dict]:
+    try:
+        return list(db.requested_maps.find({}))
+    except:
+        return []
+
+def writeRequestedMaps(beatmapset: dict) -> bool:
+    try:
+        db.requested_maps.insert_one(beatmapset)
+        return True
+    except:
+        return False
+
+def generateRequestBeatmapsetJSON(beatmapset: Beatmapset) -> dict:
+    return {
+        "artist": beatmapset.artist,
+        "title": beatmapset.title,
+        "beatmapset_id": beatmapset.id,
+        "status": beatmapset.status.name,
+        "creator": getCreator(beatmapset.user_id),
+        "done": False
+    }
+
+def requestMap(url: str):
+    beatmapset_id, beatmap_id = linkParser(url)
+
+    if beatmapset_id == None and beatmap_id == None:
+        return False
+
+    maps = readMapsMongo()
+    requested_maps = readRequestedMaps()
+
+    if any(d["beatmapset_id"] == beatmapset_id for d in requested_maps) or any(d["id"] == beatmap_id for d in maps):
+        # Check if beatmap_id already exist in maps
+        return False
+    
+    beatmapset = None
+    if beatmapset_id:
+        beatmapset = api._get(Beatmapset, "/beatmapsets/" + str(beatmapset_id))
+    elif beatmap_id:
+        beatmapset = api._get(Beatmapset, "/beatmapsets/lookup", {"beatmap_id": beatmap_id})
+        
+    beatmapset_json = generateRequestBeatmapsetJSON(beatmapset)
+    writeRequestedMaps(beatmapset_json)
+
+    print(f"{beatmapset_json['artist']} - {beatmapset_json['title']} has been requested !")
+    return True
+
 
 """
 
