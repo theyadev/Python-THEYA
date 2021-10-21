@@ -10,13 +10,14 @@ from main import (
     getCreator,
     readMapsMongo,
     getRandomMap,
-    filterMaps,
     getGenre,
     linkParser,
     getBeatmapInfo,
     addBeatmap,
     valid_status,
+    filterMapsFromArgs
 )
+
 from pymongo import *
 from random import randint, seed
 
@@ -187,29 +188,6 @@ async def setChannel(ctx: Context, arg: str):
                 color=Color.orange(),
             )
             await ctx.send(embed=embed)
-
-
-def filterMapsFromArgs(args):
-    maps = readMapsMongo()
-
-    genre = None
-    rating = None
-    search = None
-
-    for arg in args:
-        if arg.isnumeric():
-            if rating is None:
-                rating = int(arg)
-        else:
-            is_genre = getGenre(arg)
-
-            if is_genre is not None:
-                genre = is_genre.NAME
-            else:
-                search = arg
-
-    maps = filterMaps(maps, search=search, rating=rating, genre=genre)
-    return maps, genre, rating, search
 
 
 @bot.command()

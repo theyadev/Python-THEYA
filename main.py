@@ -295,6 +295,28 @@ def getRandomMap(maps: list[dict], number: int = 1) -> list[dict] | None:
 
     return None
 
+def filterMapsFromArgs(args):
+    maps = readMapsMongo()
+
+    genre = None
+    rating = None
+    search = None
+
+    for arg in args:
+        if arg.isnumeric():
+            if rating is None:
+                rating = int(arg)
+        else:
+            is_genre = getGenre(arg)
+
+            if is_genre is not None:
+                genre = is_genre.NAME
+            else:
+                search = arg
+
+    maps = filterMaps(maps, search=search, rating=rating, genre=genre)
+    return maps, genre, rating, search
+
 
 """
 
