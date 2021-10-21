@@ -18,6 +18,7 @@ from main import (
     valid_status,
 )
 from pymongo import *
+from random import randint, seed
 
 load_dotenv()
 
@@ -49,11 +50,10 @@ valid_responses = positive_responses + negative_responses
 
 def getColor(artist):
     artist = artist.replace("/\s/g", "").lower()
-    n = 0
-    for i in range(len(artist)):
-        u = ord(artist[i]) - 64
-        n += u * (i * u)
-    return n
+    seed(artist)
+    color =randint(1,16744576)
+    seed()
+    return color
 
 
 @bot.event
