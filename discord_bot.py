@@ -36,11 +36,17 @@ with open("./discord_config.json", "r", encoding="utf-8") as config_file:
     config.update(config_json)
 
 config["authorized_channels"] = []
+config["requests_channels"] = []
 
 servers = list(db.servers.find({}))
 
 for server in servers:
     config["authorized_channels"].append(server["id"])
+
+servers_request = list(db.servers_request.find({}))
+
+for server in servers_request:
+    config["request_channels"].append(server["id"])
 
 bot = commands.Bot(command_prefix=config["prefix"])
 
@@ -84,6 +90,114 @@ async def seeChannels(ctx: Context):
         title="Moderation channels list:", description=description, color=Color.blue()
     )
     await ctx.send(embed=embed)
+
+
+# TODO: DRY it
+
+@bot.command()
+async def setRequestChannel(ctx: Context, arg: str):
+    if ctx.author.id != 382302674164514818:
+        embed = Embed(
+            title="You are not authorized.",
+            description="You can't do this command !",
+            color=Color.red(),
+        )
+        await ctx.send(embed=embed)
+        return
+    print(f"{ctx.author.name} - setRequestChannel: {arg}")
+    if arg.isnumeric():
+
+        def checkPositiveOrNegative(message: Message):
+            return (
+                valid_responses.__contains__(message.content.lower())
+                and message.author == ctx.author
+            )
+
+        channel = bot.get_channel(int(arg))
+
+        if channel is None:
+            embed = Embed(
+                title="Error !",
+                description=f"Channel ID incorrect ! (15s)",
+                color=Color.red(),
+            )
+            await ctx.send(embed=embed)
+            return
+
+        if config["requests_channels"].__contains__(int(arg)):
+            await ctx.send(
+                f"Channel #{channel} is already a request channel, do you want to remove it ?"
+            )
+
+            try:
+                message: Message = await bot.wait_for(
+                    "message", check=checkPositiveOrNegative, timeout=15
+                )
+            except:
+                embed_timeout = Embed(
+                    title="Error !",
+                    description=f"You took too long, bot timeout ! (15s)",
+                    color=Color.red(),
+                )
+                await ctx.send(embed=embed_timeout)
+                return
+
+            if positive_responses.__contains__(message.content.lower()):
+                config["requests_channels"].remove(int(arg))
+
+                db.servers_request.remove({"id": int(arg)})
+
+                embed = Embed(
+                    title="Success !",
+                    description=f"#{channel} has been removed from request channels !",
+                    color=Color.green(),
+                )
+                await ctx.send(embed=embed)
+            else:
+                embed = Embed(
+                    title="Task aborted !",
+                    description="Aborted by user.",
+                    color=Color.orange(),
+                )
+                await ctx.send(embed=embed)
+
+            return
+
+        await ctx.send(
+            f"Are you sure you want to add channel #{channel} to the list of request channels ?"
+        )
+
+        try:
+            message: Message = await bot.wait_for(
+                "message", check=checkPositiveOrNegative, timeout=15
+            )
+        except:
+            embed_timeout = Embed(
+                title="Error !",
+                description=f"You took too long, bot timeout ! (15s)",
+                color=Color.red(),
+            )
+            await ctx.send(embed=embed_timeout)
+            return
+
+        if positive_responses.__contains__(message.content.lower()):
+            config["requests_channels"].append(int(arg))
+
+            db.servers_request.insert_one({"id": int(arg)})
+            embed = Embed(
+                title="Success !",
+                description=f"#{channel} is now a request channel !",
+                color=Color.green(),
+            )
+            await ctx.send(embed=embed)
+        else:
+            embed = Embed(
+                title="Task aborted !",
+                description="Aborted by user.",
+                color=Color.orange(),
+            )
+            await ctx.send(embed=embed)
+
 
 
 @bot.command()
