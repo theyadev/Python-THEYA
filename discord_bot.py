@@ -14,6 +14,8 @@ from main import (
     linkParser,
     getBeatmapInfo,
     addBeatmap,
+    readRequestedMaps,
+    requestMap,
     valid_status,
     filterMapsFromArgs,
     mapLength
@@ -46,7 +48,7 @@ for server in servers:
 servers_request = list(db.servers_request.find({}))
 
 for server in servers_request:
-    config["request_channels"].append(server["id"])
+    config["requests_channels"].append(server["id"])
 
 bot = commands.Bot(command_prefix=config["prefix"])
 
@@ -91,6 +93,15 @@ async def seeChannels(ctx: Context):
     )
     await ctx.send(embed=embed)
 
+
+@bot.command()
+async def sendEmptyMessage(ctx: Context):
+    if ctx.author.id != 382302674164514818:
+         return
+
+    
+    message = await ctx.send(" H")
+    print(ctx.channel.id, message.id)
 
 # TODO: DRY it
 
@@ -197,7 +208,6 @@ async def setRequestChannel(ctx: Context, arg: str):
                 color=Color.orange(),
             )
             await ctx.send(embed=embed)
-
 
 
 @bot.command()
@@ -368,7 +378,7 @@ async def on_message(message: Message):
         await bot.process_commands(message)
         return
 
-    if not config["authorized_channels"].__contains__(message.channel.id):
+    if not config["authorized_channels"].__contains__(message.channel.id) and not config["requests_channels"].__contains__(message.channel.id):
         return
 
     if not message.content.startswith("https://osu.ppy.sh/"):
@@ -413,91 +423,116 @@ async def on_message(message: Message):
         await message.channel.send(embed=embed)
         return
 
-    import_all = False if beatmap is not None else True
+    if config["authorized_channels"].__contains__(message.channel.id):
+        import_all = False if beatmap is not None else True
 
-    if (len(beatmapset.beatmaps) > 1) and not import_all:
+        if (len(beatmapset.beatmaps) > 1) and not import_all:
+            embed = Embed(
+                title="Do you want to add every difficulty of the beatmapset in the database ?",
+                description="(yes/no)",
+                color=Color.blue(),
+            )
+            await message.channel.send(embed=embed)
+
+            try:
+                msg_import: Message = await bot.wait_for(
+                    "message", check=checkPositiveOrNegative, timeout=timeout
+                )
+            except:
+                await message.channel.send(embed=embed_timeout)
+                return
+
+            if positive_responses.__contains__(msg_import.content.lower()):
+                import_all = True
+
         embed = Embed(
-            title="Do you want to add every difficulty of the beatmapset in the database ?",
-            description="(yes/no)",
+            title=f"Wich genre for the beatmap{'set' if import_all else ''} ?",
+            description="(Classic/Tech/Alternate/Speed/Stream)",
             color=Color.blue(),
         )
         await message.channel.send(embed=embed)
 
+        genre = None
+
         try:
-            msg_import: Message = await bot.wait_for(
+            msg_genre: Message = await bot.wait_for("message", check=check, timeout=timeout)
+            genre = getGenre(msg_genre.content)
+        except:
+            await message.channel.send(embed=embed_timeout)
+            return
+
+        if genre is None:
+            embed = Embed(
+                title="Error !",
+                description="Invalid genre ! Please try again !",
+                color=Color.red(),
+            )
+            await message.channel.send(embed=embed)
+            return
+
+        genre = genre.NAME
+
+        embed = Embed(
+            title=f"Are you sure you want to import{' every difficulty of' if import_all else ''}:",
+            description=f"**{beatmapset.artist}**\n**Title:** {beatmapset.title}\n**by:** {getCreator(beatmapset.creator)}\n{f'**Difficulty:** [{beatmap.version}]' if not import_all else ''}\n**With the genre:** {genre}",
+            color=Color.greyple(),
+        )
+        embed.set_image(url=beatmapset.covers.card_2x)
+        await message.channel.send(embed=embed)
+
+        try:
+            msg_recap: Message = await bot.wait_for(
                 "message", check=checkPositiveOrNegative, timeout=timeout
             )
         except:
             await message.channel.send(embed=embed_timeout)
             return
 
-        if positive_responses.__contains__(msg_import.content.lower()):
-            import_all = True
+        if positive_responses.__contains__(msg_recap.content.lower()):
+            embed = Embed(
+                title=f"Adding beatmap{'set' if import_all else ''} to database...",
+                description="Please wait...",
+                color=Color.orange(),
+            )
+            await message.channel.send(embed=embed)
 
-    embed = Embed(
-        title=f"Wich genre for the beatmap{'set' if import_all else ''} ?",
-        description="(Classic/Tech/Alternate/Speed/Stream)",
-        color=Color.blue(),
-    )
-    await message.channel.send(embed=embed)
+            addBeatmap(message.content, genre, import_all)
 
-    genre = None
-
-    try:
-        msg_genre: Message = await bot.wait_for("message", check=check, timeout=timeout)
-        genre = getGenre(msg_genre.content)
-    except:
-        await message.channel.send(embed=embed_timeout)
-        return
-
-    if genre is None:
+            embed = Embed(
+                title=f"The beatmap{'set' if import_all else ''} has been added !!",
+                description="You can add another one by sending another link !",
+                color=Color.green(),
+            )
+            await message.channel.send(embed=embed)
+        else:
+            embed = Embed(
+                title="Aborted.", description="Aborted by user.", color=Color.red()
+            )
+            await message.channel.send(embed=embed)
+    elif config["requests_channels"].__contains__(message.channel.id):
+        requested_maps = readRequestedMaps()
+        if any(beatmapset["beatmapset_id"] == beatmapset_id for beatmapset in requested_maps):
+            # Check if beatmap_id already exist in maps
+            embed = Embed(
+                title="Error !",
+                description="Beatmap has already been requested !",
+                color=Color.orange(),
+            )
+            await message.channel.send(embed=embed)
+            return
+        requestMap(message.content)
         embed = Embed(
-            title="Error !",
-            description="Invalid genre ! Please try again !",
-            color=Color.red(),
-        )
-        await message.channel.send(embed=embed)
-        return
-
-    genre = genre.NAME
-
-    embed = Embed(
-        title=f"Are you sure you want to import{' every difficulty of' if import_all else ''}:",
-        description=f"**{beatmapset.artist}**\n**Title:** {beatmapset.title}\n**by:** {getCreator(beatmapset.creator)}\n{f'**Difficulty:** [{beatmap.version}]' if not import_all else ''}\n**With the genre:** {genre}",
-        color=Color.greyple(),
-    )
-    embed.set_image(url=beatmapset.covers.card_2x)
-    await message.channel.send(embed=embed)
-
-    try:
-        msg_recap: Message = await bot.wait_for(
-            "message", check=checkPositiveOrNegative, timeout=timeout
-        )
-    except:
-        await message.channel.send(embed=embed_timeout)
-        return
-
-    if positive_responses.__contains__(msg_recap.content.lower()):
-        embed = Embed(
-            title=f"Adding beatmap{'set' if import_all else ''} to database...",
-            description="Please wait...",
-            color=Color.orange(),
-        )
-        await message.channel.send(embed=embed)
-
-        addBeatmap(message.content, genre, import_all)
-
-        embed = Embed(
-            title=f"The beatmap{'set' if import_all else ''} has been added !!",
-            description="You can add another one by sending another link !",
+            title=f"The beatmap has been requested !!",
+            description="You can request another one by sending another link !",
             color=Color.green(),
         )
         await message.channel.send(embed=embed)
-    else:
-        embed = Embed(
-            title="Aborted.", description="Aborted by user.", color=Color.red()
-        )
-        await message.channel.send(embed=embed)
+
+        admin_channel = await bot.fetch_channel(470336052104790033)
+        admin_message:Message = await admin_channel.fetch_message(900743846974087178)
+
+        edit_list = [f"{beatmapset['artist']} - {beatmapset['title']}" for beatmapset in requested_maps]
+        await admin_message.edit(content="\n".join(edit_list))
 
 
 @bot.event
