@@ -31,6 +31,9 @@ MONGODB_URI = getenv("MONGODB_URI")
 client = MongoClient(MONGODB_URI)
 db = client.python_database
 
+admin_request_channel = getenv("REQUEST_CHANNEL_ID")
+admin_request_message = getenv("REQUEST_MESSAGE_ID")
+
 config = {}
 
 with open("./discord_config.json", "r", encoding="utf-8") as config_file:
@@ -528,8 +531,8 @@ async def on_message(message: Message):
         )
         await message.channel.send(embed=embed)
 
-        admin_channel = await bot.fetch_channel(900745297611853964)
-        admin_message:Message = await admin_channel.fetch_message(900745773812158465)
+        admin_channel = await bot.fetch_channel(admin_request_channel)
+        admin_message:Message = await admin_channel.fetch_message(admin_request_message)
 
         edit_list = [f"{beatmapset['artist']} - {beatmapset['title']}" for beatmapset in requested_maps]
         await admin_message.edit(content="\n".join(edit_list))
