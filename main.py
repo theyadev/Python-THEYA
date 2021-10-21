@@ -3,6 +3,7 @@ from os import getenv
 from dotenv import load_dotenv
 from pymongo import *
 from random import sample
+from math import floor
 
 load_dotenv()
 
@@ -341,6 +342,12 @@ def getBeatmapInfo(beatmapset_id: int = None, beatmap_id: int = None, import_all
 
     return beatmapset, beatmap
 
+def mapLength(nombre):
+    heures = floor(nombre / 60 / 60)
+    minutes = floor(nombre / 60) - (heures * 60)
+    secondes = nombre % 60
+    duree = str(minutes).zfill(2) + ':' + str(secondes).zfill(2)
+    return duree
 
 """
 

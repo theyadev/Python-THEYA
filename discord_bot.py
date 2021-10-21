@@ -15,7 +15,8 @@ from main import (
     getBeatmapInfo,
     addBeatmap,
     valid_status,
-    filterMapsFromArgs
+    filterMapsFromArgs,
+    mapLength
 )
 
 from pymongo import *
@@ -219,7 +220,7 @@ async def recommend(ctx, *args):
         embed = Embed(
             title=f"{beatmap['artist']} - {beatmap['title']} by {beatmap['creator']} [{beatmap['version']}]",
             url=f"https://osu.ppy.sh/b/{beatmap['id']}",
-            description=f"**▸ Difficulty:** {beatmap['rating']}★ **▸ Genre:** {beatmap['genre']} **▸ Length:** {beatmap['total_length']}s\n**▸ CS:** {beatmap['cs']} **▸ Accuracy:** {beatmap['accuracy']} **▸ AR:** {beatmap['ar']} **▸ HP:** {beatmap['hp']}\n\n[**Download**]({config['beatmap_mirror']}{beatmap['beatmapset_id']})",
+            description=f"**▸ Difficulty:** {beatmap['rating']}★ **▸ Genre:** {beatmap['genre']} **▸ Length:** {mapLength(beatmap['total_length'])} ♪\n**▸ CS:** {beatmap['cs']} **▸ Accuracy:** {beatmap['accuracy']} **▸ AR:** {beatmap['ar']} **▸ HP:** {beatmap['hp']}\n\n[**Download**]({config['beatmap_mirror']}{beatmap['beatmapset_id']})",
             color=getColor(beatmap["artist"]),
         )
         embed.set_image(

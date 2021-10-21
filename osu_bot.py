@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 import shlex
 from main import (
     getRandomMap,
-    filterMapsFromArgs
+    filterMapsFromArgs,
+    mapLength
 )
 import math
 from threading import Timer
@@ -21,14 +22,6 @@ COOLDOWN_SECONDS = 10
 
 cooldown = []
 cooldown_general = []
-
-
-def mapLength(nombre):
-    heures = math.floor(nombre / 60 / 60)
-    minutes = math.floor(nombre / 60) - (heures * 60)
-    secondes = nombre % 60
-    duree = str(minutes).zfill(2) + ':' + str(secondes).zfill(2)
-    return duree
 
 
 def mapRating(nombre):
@@ -67,10 +60,12 @@ class MyBot(Client):
     async def messageCooldown(self, message, cooldown_time):
         if cooldown.__contains__(message.Author.name):
             if cooldown_general.__contains__(message.Author.name):
-                return
+                return True
             cooldown_general.append(message.Author.name)
             await message.reply(cls=self, reply=f'Vous devez attendre {cooldown_time} secondes avant de pouvoir refaire une commande.')
-            return
+            return True
+
+        return False
 
     async def onReady(self):
         print('Le bot est lancé !')
@@ -87,7 +82,8 @@ class MyBot(Client):
         if command == "r" or command == "recommend":
             command_cooldown = 10
 
-            await self.messageCooldown(message, command_cooldown)
+            if await self.messageCooldown(message, command_cooldown):
+                return
 
             print(f"{message.Author.name} - recommend: {args}")
 
@@ -103,7 +99,8 @@ class MyBot(Client):
         if command == "bomb":
             command_cooldown = 15
 
-            await self.messageCooldown(message, command_cooldown)
+            if await self.messageCooldown(message, command_cooldown):
+                return
 
             print(f"{message.Author.name} - bomb: {args}")
 
@@ -119,17 +116,56 @@ class MyBot(Client):
         if command == "help":
             command_cooldown = 20
 
-            await self.messageCooldown(message, command_cooldown)
+            if await self.messageCooldown(message, command_cooldown):
+                return
 
-            print(f"{message.Author.name} - help: {args}")
+            print(f"{message.Author.name} - help")
 
             await message.reply(cls=self, reply='Filters: "artist/title" genre rating')
             sleep(0.5)
-            await message.reply(cls=self, reply='!recommend (!r) [filters] = recommend an osu! beatmap.')
+            await message.reply(cls=self, reply='!discord: Show Discord link')
             sleep(0.5)
-            await message.reply(cls=self, reply='!bomb [filters] = recommend 5 maps.')
+            await message.reply(cls=self, reply='!recommend (!r) [filters] = Recommend an osu! beatmap.')
+            sleep(0.5)
+            await message.reply(cls=self, reply='!bomb [filters] = Recommend 3 beatmaps.')
             sleep(0.5)
             await message.reply(cls=self, reply='Command example: !r "Camellia feat. Nanahira" Tech')
+
+            cooldown.append(message.Author.name)
+
+            Timer(float(command_cooldown), removeCooldown,
+                  (message.Author.name)).start()
+
+            return
+
+        if command == "discord":
+            command_cooldown = 10
+
+            if await self.messageCooldown(message, command_cooldown):
+                return
+
+            print(f"{message.Author.name} - discord")
+
+            await message.reply(cls=self, reply='[https://discord.gg/bUsRruH Click here to join the Discord !]')
+
+            cooldown.append(message.Author.name)
+
+            Timer(float(command_cooldown), removeCooldown,
+                  (message.Author.name)).start()
+
+            return
+
+        if command == "maps":
+            command_cooldown = 10
+
+            if await self.messageCooldown(message, command_cooldown):
+                return
+
+            print(f"{message.Author.name} - maps: {args}")
+
+            maps, genre, rating, search = filterMapsFromArgs(args)
+
+            await message.reply(cls=self, reply=f"There are {len(maps)} maps{' with:' if search or genre or rating else ' !'}{' ' + search if search else ''}{' ' + str(rating) + '★' if rating else ''}{' ' + genre if genre else ''}")
 
             cooldown.append(message.Author.name)
 
