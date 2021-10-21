@@ -52,7 +52,7 @@ valid_responses = positive_responses + negative_responses
 def getColor(artist):
     artist = artist.replace("/\s/g", "").lower()
     seed(artist)
-    color =randint(1,16744576)
+    color = randint(1, 16744576)
     seed()
     return color
 

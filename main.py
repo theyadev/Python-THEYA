@@ -141,9 +141,11 @@ def linkParser(link: str) -> tuple((int | None, int | None)):
 
     return None, None
 
+
 def getCreator(user_id):
     creator = api.user(user_id)
     return creator.username
+
 
 def generateBeatmapJSON(beatmap: Beatmap, genre: Genre, beatmapset: Beatmapset = None) -> dict:
     return {
@@ -295,6 +297,7 @@ def getRandomMap(maps: list[dict], number: int = 1) -> list[dict] | None:
 
     return None
 
+
 def filterMapsFromArgs(args):
     maps = readMapsMongo()
 
@@ -330,7 +333,8 @@ def getBeatmapInfo(beatmapset_id: int = None, beatmap_id: int = None, import_all
     beatmap = None
 
     if beatmap_id:
-        beatmapset = api._get(Beatmapset, "/beatmapsets/lookup", {"beatmap_id": beatmap_id})
+        beatmapset = api._get(
+            Beatmapset, "/beatmapsets/lookup", {"beatmap_id": beatmap_id})
         beatmap = api.beatmap(beatmap_id)
     elif beatmapset_id:
         beatmapset = api._get(Beatmapset, "/beatmapsets/" + str(beatmapset_id))
