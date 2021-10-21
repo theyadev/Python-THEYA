@@ -62,7 +62,7 @@ class MyBot(Client):
             if cooldown_general.__contains__(message.Author.name):
                 return True
             cooldown_general.append(message.Author.name)
-            await message.reply(cls=self, reply=f'Vous devez attendre {cooldown_time} secondes avant de pouvoir refaire une commande.')
+            await message.reply(cls=self, reply=f'You must wait {cooldown_time} seconds before doing another command.')
             return True
 
         return False
