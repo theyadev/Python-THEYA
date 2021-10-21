@@ -528,8 +528,8 @@ async def on_message(message: Message):
         )
         await message.channel.send(embed=embed)
 
-        admin_channel = await bot.fetch_channel(470336052104790033)
-        admin_message:Message = await admin_channel.fetch_message(900743846974087178)
+        admin_channel = await bot.fetch_channel(900745297611853964)
+        admin_message:Message = await admin_channel.fetch_message(900745773812158465)
 
         edit_list = [f"{beatmapset['artist']} - {beatmapset['title']}" for beatmapset in requested_maps]
         await admin_message.edit(content="\n".join(edit_list))
