@@ -3,3 +3,4 @@ python-dotenv
 pymongo
 pymongo[srv]
 discord.py
+git+https://github.com/The-CJ/osu_irc.py.git#egg=osu_irc
