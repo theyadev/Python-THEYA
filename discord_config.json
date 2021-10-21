@@ -1,3 +1,5 @@
 {
-    "prefix": "$"
+    "prefix": "$",
+    "beatmap_mirror_default": "https://osu.ppy.sh/d/",
+    "beatmap_mirror": "https://bm6.aeris-dev.pw/d/"
 }
