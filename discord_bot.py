@@ -514,7 +514,8 @@ async def on_message(message: Message):
             await message.channel.send(embed=embed)
     elif config["requests_channels"].__contains__(message.channel.id):
         requested_maps = readRequestedMaps()
-        if any(beatmapset["beatmapset_id"] == beatmapset_id for beatmapset in requested_maps):
+
+        if any(beatmaps["beatmapset_id"] == beatmapset.id for beatmaps in requested_maps):
             # Check if beatmap_id already exist in maps
             embed = Embed(
                 title="Error !",
@@ -534,6 +535,7 @@ async def on_message(message: Message):
         admin_channel = await bot.fetch_channel(admin_request_channel)
         admin_message:Message = await admin_channel.fetch_message(admin_request_message)
 
+        requested_maps = readRequestedMaps()
         edit_list = [f"{beatmapset['artist']} - {beatmapset['title']}" for beatmapset in requested_maps]
         await admin_message.edit(content="\n".join(edit_list))
 
