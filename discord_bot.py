@@ -26,6 +26,8 @@ from random import randint, seed
 
 load_dotenv()
 
+DISCORD_TOKEN = getenv("DISCORD_TOKEN")
+
 MONGODB_URI = getenv("MONGODB_URI")
 
 client = MongoClient(MONGODB_URI)
@@ -40,18 +42,12 @@ with open("./discord_config.json", "r", encoding="utf-8") as config_file:
     config_json = json.load(config_file)
     config.update(config_json)
 
-config["authorized_channels"] = []
-config["requests_channels"] = []
+config["servers"] = []
 
-servers = list(db.servers.find({}))
 
-for server in servers:
-    config["authorized_channels"].append(server["id"])
+config["servers"] = list(db.servers.find({}))
 
-servers_request = list(db.servers_request.find({}))
 
-for server in servers_request:
-    config["requests_channels"].append(server["id"])
 
 bot = commands.Bot(command_prefix=config["prefix"])
 
@@ -108,8 +104,7 @@ async def sendEmptyMessage(ctx: Context):
 
 # TODO: DRY it
 
-@bot.command()
-async def setRequestChannel(ctx: Context, arg: str):
+async def checkIfAuthorIsMe(ctx):
     if ctx.author.id != 382302674164514818:
         embed = Embed(
             title="You are not authorized.",
@@ -117,112 +112,20 @@ async def setRequestChannel(ctx: Context, arg: str):
             color=Color.red(),
         )
         await ctx.send(embed=embed)
-        return
-    print(f"{ctx.author.name} - setRequestChannel: {arg}")
-    if arg.isnumeric():
-
-        def checkPositiveOrNegative(message: Message):
-            return (
-                valid_responses.__contains__(message.content.lower())
-                and message.author == ctx.author
-            )
-
-        channel = bot.get_channel(int(arg))
-
-        if channel is None:
-            embed = Embed(
-                title="Error !",
-                description=f"Channel ID incorrect ! (15s)",
-                color=Color.red(),
-            )
-            await ctx.send(embed=embed)
-            return
-
-        if config["requests_channels"].__contains__(int(arg)):
-            await ctx.send(
-                f"Channel #{channel} is already a request channel, do you want to remove it ?"
-            )
-
-            try:
-                message: Message = await bot.wait_for(
-                    "message", check=checkPositiveOrNegative, timeout=15
-                )
-            except:
-                embed_timeout = Embed(
-                    title="Error !",
-                    description=f"You took too long, bot timeout ! (15s)",
-                    color=Color.red(),
-                )
-                await ctx.send(embed=embed_timeout)
-                return
-
-            if positive_responses.__contains__(message.content.lower()):
-                config["requests_channels"].remove(int(arg))
-
-                db.servers_request.remove({"id": int(arg)})
-
-                embed = Embed(
-                    title="Success !",
-                    description=f"#{channel} has been removed from request channels !",
-                    color=Color.green(),
-                )
-                await ctx.send(embed=embed)
-            else:
-                embed = Embed(
-                    title="Task aborted !",
-                    description="Aborted by user.",
-                    color=Color.orange(),
-                )
-                await ctx.send(embed=embed)
-
-            return
-
-        await ctx.send(
-            f"Are you sure you want to add channel #{channel} to the list of request channels ?"
-        )
-
-        try:
-            message: Message = await bot.wait_for(
-                "message", check=checkPositiveOrNegative, timeout=15
-            )
-        except:
-            embed_timeout = Embed(
-                title="Error !",
-                description=f"You took too long, bot timeout ! (15s)",
-                color=Color.red(),
-            )
-            await ctx.send(embed=embed_timeout)
-            return
-
-        if positive_responses.__contains__(message.content.lower()):
-            config["requests_channels"].append(int(arg))
-
-            db.servers_request.insert_one({"id": int(arg)})
-            embed = Embed(
-                title="Success !",
-                description=f"#{channel} is now a request channel !",
-                color=Color.green(),
-            )
-            await ctx.send(embed=embed)
-        else:
-            embed = Embed(
-                title="Task aborted !",
-                description="Aborted by user.",
-                color=Color.orange(),
-            )
-            await ctx.send(embed=embed)
-
+        return False
+    
+    return True
 
 @bot.command()
-async def setChannel(ctx: Context, arg: str):
-    if ctx.author.id != 382302674164514818:
-        embed = Embed(
-            title="You are not authorized.",
-            description="You can't do this command !",
-            color=Color.red(),
-        )
-        await ctx.send(embed=embed)
+async def setChannel(ctx: Context, arg: str, type: str):
+    if not await checkIfAuthorIsMe(ctx):
         return
+
+    types = ["authorized_channels", "requests_channels", "approval_channels", "decline_channels"]
+
+    if not type in types:
+        return
+
     print(f"{ctx.author.name} - setChannel: {arg}")
     if arg.isnumeric():
 
@@ -243,9 +146,11 @@ async def setChannel(ctx: Context, arg: str):
             await ctx.send(embed=embed)
             return
 
-        if config["authorized_channels"].__contains__(int(arg)):
+        servers_type = filter(lambda x: x['type'] == type, config['servers'])
+
+        if any(server for server in servers_type if server["id"] == int(arg)):
             await ctx.send(
-                f"Channel #{channel} is already a moderation channel, do you want to remove it ?"
+                f"Channel #{channel} is already a {type}, do you want to remove it ?"
             )
 
             try:
@@ -261,14 +166,14 @@ async def setChannel(ctx: Context, arg: str):
                 await ctx.send(embed=embed_timeout)
                 return
 
-            if positive_responses.__contains__(message.content.lower()):
-                config["authorized_channels"].remove(int(arg))
+            if message.content.lower() in positive_responses:
+                config["servers"].remove({"id": int(arg), "type": type})
 
-                db.servers.remove({"id": int(arg)})
+                db.servers.remove({"id": int(arg), "type": type})
 
                 embed = Embed(
                     title="Success !",
-                    description=f"#{channel} has been removed from moderation channels !",
+                    description=f"#{channel} has been removed from {type} !",
                     color=Color.green(),
                 )
                 await ctx.send(embed=embed)
@@ -283,7 +188,7 @@ async def setChannel(ctx: Context, arg: str):
             return
 
         await ctx.send(
-            f"Are you sure you want to add channel #{channel} to the list of moderation channels ?"
+            f"Are you sure you want to add channel #{channel} to the list of {type} ?"
         )
 
         try:
@@ -299,13 +204,13 @@ async def setChannel(ctx: Context, arg: str):
             await ctx.send(embed=embed_timeout)
             return
 
-        if positive_responses.__contains__(message.content.lower()):
-            config["authorized_channels"].append(int(arg))
+        if message.content.lower() in  positive_responses:
+            config["servers"].append({"id": int(arg), "type": type})
 
-            db.servers.insert_one({"id": int(arg)})
+            db.servers.insert_one({"id": int(arg), "type": type})
             embed = Embed(
                 title="Success !",
-                description=f"#{channel} is now a moderation channel !",
+                description=f"#{channel} is now a {type} !",
                 color=Color.green(),
             )
             await ctx.send(embed=embed)
@@ -381,7 +286,7 @@ async def on_message(message: Message):
         await bot.process_commands(message)
         return
 
-    if not config["authorized_channels"].__contains__(message.channel.id) and not config["requests_channels"].__contains__(message.channel.id):
+    if not any(channel for channel in config['servers'] if channel['id'] == message.channel.id):
         return
 
     if not message.content.startswith("https://osu.ppy.sh/"):
@@ -417,7 +322,7 @@ async def on_message(message: Message):
             await message.channel.send(embed=embed)
             return
 
-    if not valid_status.__contains__(beatmapset.status.name):
+    if not beatmapset.status.name in valid_status:
         embed = Embed(
             title="Erreur !",
             description="The beatmap is RANKED, QUALIED ou LOVED !\nPlease try again with another beatmap !",
@@ -426,7 +331,10 @@ async def on_message(message: Message):
         await message.channel.send(embed=embed)
         return
 
-    if config["authorized_channels"].__contains__(message.channel.id):
+    admins_server = filter(lambda x: x['type'] == "authorized_channels", config["servers"])
+    requests_server = filter(lambda x: x['type'] == "requests_channels", config["servers"])
+
+    if any(channel for channel in admins_server if channel['id'] == message.channel.id):
         import_all = False if beatmap is not None else True
 
         if (len(beatmapset.beatmaps) > 1) and not import_all:
@@ -445,7 +353,7 @@ async def on_message(message: Message):
                 await message.channel.send(embed=embed_timeout)
                 return
 
-            if positive_responses.__contains__(msg_import.content.lower()):
+            if msg_import.content.lower() in positive_responses:
                 import_all = True
 
         embed = Embed(
@@ -491,7 +399,7 @@ async def on_message(message: Message):
             await message.channel.send(embed=embed_timeout)
             return
 
-        if positive_responses.__contains__(msg_recap.content.lower()):
+        if msg_recap.content.lower() in positive_responses:
             embed = Embed(
                 title=f"Adding beatmap{'set' if import_all else ''} to database...",
                 description="Please wait...",
@@ -512,7 +420,7 @@ async def on_message(message: Message):
                 title="Aborted.", description="Aborted by user.", color=Color.red()
             )
             await message.channel.send(embed=embed)
-    elif config["requests_channels"].__contains__(message.channel.id):
+    elif any(channel for channel in requests_server if channel['id'] == message.channel.id):
         requested_maps = readRequestedMaps()
 
         if any(beatmaps["beatmapset_id"] == beatmapset.id for beatmaps in requested_maps):
@@ -547,4 +455,4 @@ async def on_command_error(ctx, error):
     raise error
 
 
-bot.run(getenv("DISCORD_TOKEN"))
+bot.run(DISCORD_TOKEN)
