@@ -1,15 +1,22 @@
+import shlex
+import sys
+
 from osu_irc import *
+
 from os import getenv
 from dotenv import load_dotenv
-import shlex
-from main import (
-    getRandomMap,
-    filterMapsFromArgs,
-    mapLength
-)
-import math
+
 from threading import Timer
+
 from time import sleep
+
+sys.path.append("../")
+
+from Classes.Connexions import Connexions
+
+from filters import *
+from utilities import formatMapLength
+from getRandomMap import getRandomMap
 
 load_dotenv()
 
@@ -19,6 +26,8 @@ PASSWORD = getenv('OSU_IRC_PASSWORD')
 PREFIX = "!"
 
 COOLDOWN_SECONDS = 10
+
+API = Connexions()
 
 cooldown = []
 cooldown_general = []
@@ -44,7 +53,9 @@ def removeCooldown(*author):
 class MyBot(Client):
 
     async def recommendMaps(self, message, args, nb=1):
-        maps, genre, rating, search = filterMapsFromArgs(args)
+        maps = API.readDatabse("maps")
+
+        maps = filterMapsFromArgs(maps, args)[0]
 
         maps = getRandomMap(maps, nb)
 
@@ -53,7 +64,7 @@ class MyBot(Client):
             return
 
         for beatmap in maps:
-            await message.reply(cls=self, reply=f"[https://osu.ppy.sh/b/{beatmap['id']} {beatmap['artist']} - {beatmap['title']} [{beatmap['version']}]] | {beatmap['genre']} | {mapRating(beatmap['rating'])} ★ | {mapLength(beatmap['total_length'])} ♪")
+            await message.reply(cls=self, reply=f"[https://osu.ppy.sh/b/{beatmap['id']} {beatmap['artist']} - {beatmap['title']} [{beatmap['version']}]] | {beatmap['genre']} | {mapRating(beatmap['rating'])} ★ | {formatMapLength(beatmap['total_length'])} ♪")
 
         return
 
@@ -69,7 +80,6 @@ class MyBot(Client):
 
     async def onReady(self):
         print('Le bot est lancé !')
-        # do something
 
     async def onMessage(self, message: Message):
         if not message.content.startswith(PREFIX):

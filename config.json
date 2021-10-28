@@ -1,0 +1,10 @@
+{
+    "genres": [
+        {"name": "Classic"},
+        {"name": "Tech"},
+        {"name": "Alternate", "aliases": ["alt"]},
+        {"name": "Speed"},
+        {"name": "Stream"}
+    ],
+    "valid_status": ["GRAVEYARD", "PENDING", "WIP"]
+}
