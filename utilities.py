@@ -2,6 +2,8 @@ from loadConfig import loadConfigJSON
 
 from math import floor
 
+from random import randint, seed
+
 config = loadConfigJSON()
 
 
@@ -34,3 +36,10 @@ def getCreatorName(API, user_id) -> str:
 
     creator = API.osu.user(user_id)
     return creator.username
+
+def getColor(artist):
+    artist = artist.replace("/\s/g", "").lower()
+    seed(artist)
+    color = randint(1, 16744576)
+    seed()
+    return color
