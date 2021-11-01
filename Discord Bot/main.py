@@ -47,10 +47,10 @@ config = loadDiscordConfigJSON()
 config["servers"] = []
 
 
-config["servers"] = list(API.readDatabse('servers'))
+config["servers"] = list(API.readDatabse("servers"))
 
-for i in range(len(config['servers'])):
-    del config['servers'][i]['_id']
+for i in range(len(config["servers"])):
+    del config["servers"][i]["_id"]
 
 
 bot = commands.Bot(command_prefix=config["prefix"])
@@ -65,6 +65,7 @@ valid_responses = positive_responses + negative_responses
 async def on_ready():
     print("We have logged in as {0.user}".format(bot))
 
+
 @bot.command()
 async def sendEmptyMessage(ctx: Context):
     if ctx.author.id != 382302674164514818:
@@ -72,6 +73,7 @@ async def sendEmptyMessage(ctx: Context):
 
     message = await ctx.send(" H")
     print(ctx.channel.id, message.id)
+
 
 async def handleAdd(message, beatmap, beatmapset):
     def checkPositiveOrNegative(msg: Message):
@@ -94,11 +96,13 @@ async def handleAdd(message, beatmap, beatmapset):
     import_all = False if beatmap is not None else True
 
     if len(beatmapset.beatmaps) > 1 and not import_all:
-        await message.channel.send(embed=Embed(
-            title="Do you want to add every difficulty of the beatmapset in the database ?",
-            description="(yes/no)",
-            color=Color.blue(),
-        ))
+        await message.channel.send(
+            embed=Embed(
+                title="Do you want to add every difficulty of the beatmapset in the database ?",
+                description="(yes/no)",
+                color=Color.blue(),
+            )
+        )
 
         try:
             msg_import: Message = await bot.wait_for(
@@ -106,16 +110,18 @@ async def handleAdd(message, beatmap, beatmapset):
             )
         except:
             await message.channel.send(embed=embed_timeout)
-            return
+            return False
 
         if msg_import.content.lower() in positive_responses:
             import_all = True
 
-    await message.channel.send(embed=Embed(
-        title=f"Wich genre for the beatmap{'set' if import_all else ''} ?",
-        description="(Classic/Tech/Alternate/Speed/Stream)",
-        color=Color.blue(),
-    ))
+    await message.channel.send(
+        embed=Embed(
+            title=f"Wich genre for the beatmap{'set' if import_all else ''} ?",
+            description="(Classic/Tech/Alternate/Speed/Stream)",
+            color=Color.blue(),
+        )
+    )
 
     genre = None
 
@@ -124,23 +130,25 @@ async def handleAdd(message, beatmap, beatmapset):
         genre = getGenre(msg_genre.content)
     except:
         await message.channel.send(embed=embed_timeout)
-        return
+        return False
 
     if genre is None:
-        await message.channel.send(embed=Embed(
-            title="Error !",
-            description="Invalid genre ! Please try again !",
-            color=Color.red(),
-        ))
-        return
+        await message.channel.send(
+            embed=Embed(
+                title="Error !",
+                description="Invalid genre ! Please try again !",
+                color=Color.red(),
+            )
+        )
+        return False
 
-    genre = genre['name']
+    genre = genre["name"]
 
     embed = Embed(
         title=f"Are you sure you want to import{' every difficulty of' if import_all else ''}:",
         description=f"**{beatmapset.artist}**\n**Title:** {beatmapset.title}\n**by:** {getCreatorName(API, beatmapset.creator)}\n{f'**Difficulty:** [{beatmap.version}]' if not import_all else ''}\n**With the genre:** {genre}",
         color=Color.greyple(),
-        image=""
+        image="",
     )
     embed.set_image(url=beatmapset.covers.card_2x)
     await message.channel.send(embed=embed)
@@ -151,28 +159,53 @@ async def handleAdd(message, beatmap, beatmapset):
         )
     except:
         await message.channel.send(embed=embed_timeout)
-        return
+        return False
 
     if msg_recap.content.lower() in positive_responses:
-        await message.channel.send(embed=Embed(
-            title=f"Adding beatmap{'set' if import_all else ''} to database...",
-            description="Please wait...",
-            color=Color.orange(),
-        ))
+        await message.channel.send(
+            embed=Embed(
+                title=f"Adding beatmap{'set' if import_all else ''} to database...",
+                description="Please wait...",
+                color=Color.orange(),
+            )
+        )
 
         added = addBeatmap(message.content, genre, import_all)
 
         embed = None
 
-        await message.channel.send(embed=Embed(
-            title=f"The beatmap{'set' if import_all else ''} has {'not' if not added else ''} been added !!",
-            description="You can add another one by sending another link !",
-            color=Color.green() if added else Color.red(),
-        ))
+        await message.channel.send(
+            embed=Embed(
+                title=f"The beatmap{'set' if import_all else ''} has {'not' if not added else ''} been added !!",
+                description="You can add another one by sending another link !",
+                color=Color.green() if added else Color.red(),
+            )
+        )
     else:
-        await message.channel.send(embed=Embed(
-            title="Aborted.", description="Aborted by user.", color=Color.red()
-        ))
+        await message.channel.send(
+            embed=Embed(
+                title="Aborted.", description="Aborted by user.", color=Color.red()
+            )
+        )
+    
+    return True
+
+@bot.command()
+async def edit(ctx: Context):
+    await updateEdit()
+
+async def updateEdit():
+    admin_channel = await bot.fetch_channel(admin_request_channel)
+    admin_message: Message = await admin_channel.fetch_message(admin_request_message)
+
+    requested_maps = API.mongo.requested_maps.find({"done": False})
+
+    edit_list = [
+        f"{beatmapset['artist']} - {beatmapset['title']}"
+        for beatmapset in requested_maps
+    ]
+
+    await admin_message.edit(content="\n".join(edit_list))
 
 
 async def handleRequest(message, beatmapset):
@@ -180,33 +213,29 @@ async def handleRequest(message, beatmapset):
 
     if any(beatmaps["beatmapset_id"] == beatmapset.id for beatmaps in requested_maps):
         # Check if beatmap_id already exist in maps
-        await message.channel.send(embed=Embed(
-            title="Error !",
-            description="Beatmap has already been requested !",
-            color=Color.orange(),
-        ))
+        await message.channel.send(
+            embed=Embed(
+                title="Error !",
+                description="Beatmap has already been requested !",
+                color=Color.orange(),
+            )
+        )
         return
 
     requested = requestMap(message.content)
 
-    await message.channel.send(embed=Embed(
-        title=f"The beatmap has {'not' if not requested else ''} been requested !!",
-        description="You can request another one by sending another link !",
-        color=Color.green() if requested else Color.red(),
-    ))
+    await message.channel.send(
+        embed=Embed(
+            title=f"The beatmap has {'not' if not requested else ''} been requested !!",
+            description="You can request another one by sending another link !",
+            color=Color.green() if requested else Color.red(),
+        )
+    )
 
     if not requested:
         return
 
-    admin_channel = await bot.fetch_channel(admin_request_channel)
-    admin_message: Message = await admin_channel.fetch_message(admin_request_message)
-
-    requested_maps = API.readDatabse("requested_maps")
-
-    edit_list = [
-        f"{beatmapset['artist']} - {beatmapset['title']}" for beatmapset in requested_maps]
-
-    await admin_message.edit(content="\n".join(edit_list))
+    await updateEdit()
 
 
 @bot.event
@@ -218,7 +247,9 @@ async def on_message(message: Message):
         await bot.process_commands(message)
         return
 
-    if not any(channel for channel in config['servers'] if channel['id'] == message.channel.id):
+    if not any(
+        channel for channel in config["servers"] if channel["id"] == message.channel.id
+    ):
         return
 
     if not message.content.startswith("https://osu.ppy.sh/"):
@@ -264,14 +295,49 @@ async def on_message(message: Message):
         return
 
     admins_server = filter(
-        lambda x: x['type'] == "authorized_channels", config["servers"])
-    requests_server = filter(
-        lambda x: x['type'] == "requests_channels", config["servers"])
+        lambda x: x["type"] == "authorized_channels", config["servers"]
+    )
 
-    if any(channel for channel in admins_server if channel['id'] == message.channel.id):
+    requests_server = filter(
+        lambda x: x["type"] == "requests_channels", config["servers"]
+    )
+
+    approvals_server = filter(
+        lambda x: x["type"] == "approval_channels", config["servers"]
+    )
+
+    declines_server = filter(
+        lambda x: x["type"] == "decline_channels", config["servers"]
+    )
+
+    if any(channel for channel in admins_server if channel["id"] == message.channel.id):
         await handleAdd(message, beatmap, beatmapset)
-    elif any(channel for channel in requests_server if channel['id'] == message.channel.id):
+    elif any(
+        channel for channel in requests_server if channel["id"] == message.channel.id
+    ):
         await handleRequest(message, beatmapset)
+    elif any(
+        channel for channel in approvals_server if channel["id"] == message.channel.id
+    ):
+        requested_maps = API.readDatabse("requested_maps")
+        if any(beatmap for beatmap in requested_maps if beatmap['beatmapset_id'] == beatmapset.id):
+            added = await handleAdd(message, beatmap, beatmapset)
+            if added:
+                API.mongo.requested_maps.find_one_and_delete(
+                    {"beatmapset_id": beatmapset.id}
+                )
+                await updateEdit()
+    elif any(
+        channel for channel in declines_server if channel["id"] == message.channel.id
+    ):
+        requested_maps = API.mongo.requested_maps.find({"done": False})
+        if any(beatmap for beatmap in requested_maps if beatmap['beatmapset_id'] == beatmapset.id):
+            beatmaps = API.mongo.requested_maps.find_one({"beatmapset_id": beatmapset.id}) 
+            beatmaps['done'] = True
+            print(beatmaps)
+            API.mongo.requested_maps.find_one_and_replace({"beatmapset_id": beatmapset.id}, beatmaps)
+            await updateEdit()
+            await message.channel.send('La beatmap a été refusé !')
 
 
 @bot.event
@@ -279,6 +345,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
         return
     raise error
+
 
 bot.add_cog(Recommend(bot))
 bot.add_cog(Maps(bot))
