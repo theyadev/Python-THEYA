@@ -193,6 +193,7 @@ async def handleAdd(message, beatmap, beatmapset):
 @bot.command()
 async def edit(ctx: Context):
     await updateEdit()
+    await ctx.message.delete()
 
 async def updateEdit():
     admin_channel = await bot.fetch_channel(admin_request_channel)
@@ -201,11 +202,13 @@ async def updateEdit():
     requested_maps = API.mongo.requested_maps.find({"done": False})
 
     edit_list = [
-        f"{beatmapset['artist']} - {beatmapset['title']}"
+        f"[{beatmapset['artist']} - {beatmapset['title']}](https://osu.ppy.sh/beatmapsets/{beatmapset['beatmapset_id']})"
         for beatmapset in requested_maps
     ]
+    
+    edit_embed = Embed(title="List of requested maps !", description="\n".join(edit_list), color=Color.blurple())
 
-    await admin_message.edit(content="\n".join(edit_list))
+    await admin_message.edit(embed=edit_embed)
 
 
 async def handleRequest(message, beatmapset):
